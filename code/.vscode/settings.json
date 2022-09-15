@@ -1,0 +1,14 @@
+{
+    "cmake.configureEnvironment": {
+        "BLA_VENDOR":"FLAME"
+        // "BLA_VENDOR":"Generic"
+    },
+    "files.associations": {
+        "*.inc": "makefile",
+        "*.fi": "FortranFreeForm",
+        "blis.h": "c",
+        "complex.h": "c",
+        "float.h": "c",
+        "math.h": "c"
+    }
+}
