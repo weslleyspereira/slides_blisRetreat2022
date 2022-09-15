@@ -114,17 +114,15 @@
 	\tableofcontents
 
 	\begin{center}
-		\textbf{Goals of this talk:}\\
-	Show inconsistencies in current BLAS and LAPACK libraries\\
-	Propose a solution\\
+		\textbf{One of the goals of this talk:}\\
 	Seek feedback
 \end{center}
 
 \end{frame}
 
-\section{Inconsistencies in current BLAS and LAPACK libraries}
+\section{Inconsistencies in the Reference BLAS and LAPACK libraries}
 
-\begin{frame}{Inconsistencies in the BLAS}
+\begin{frame}{Inconsistencies in the Reference BLAS}
 
 	IxAMAX: Return the index of the largest entry.
 	\begin{itemize}
@@ -147,22 +145,33 @@
 	% 	\item \textbf{Challenge:} This (inconsistent) behavior is a standard!
 	% \end{itemize}
 
+	\only<2>{\footnotesize \flushright \color{red} BLIS 0.9.0 has inconsistency \#2 only.}
+
 \end{frame}
 
-\begin{frame}{Inconsistencies in the BLAS}
+\begin{frame}{Inconsistencies in the Reference BLAS}
 
 	xGER: $A := A + \alpha x y^T$.
 	\begin{itemize}
-		\item Inconsistency: Depending on the value of $\alpha$ or $y_j$, Infs and NaNs do not propagate.
-		\item Current Standard BLAS:\\
+		\item Current Reference BLAS:\\
 		~ If $\alpha = 0$, return $A$.\\
-		~ If $y_j = 0$ then $A_{ij} := A_{ij}$.\\
+		~ If $y_j = 0$ then $A_{ij} := A_{ij}$. ( What if $x_i = Inf$ or $NaN$? )\\
 		~ There is no check for $x_i = 0$.
-		\item Proposed consistent fix: 
 	\end{itemize}
 
+	~\\
+	xTRSV: Solve $Tx = b$ for $x$.
+	\begin{itemize}
+		\item Current Reference BLAS:\\
+		~ Skip trailing 0s in $b$.\\
+		~ If $x_j = 0$ then skip update $x_i := x_i - A_{ij}x_j$.\\
+		~ No checks for 0s when solving $T^Tx = b$.
+	\end{itemize}
+
+	~\\
+	Proposed consistent fix:
 	\begin{center}
-		\textbf{Keep check for $\alpha = 0$ but not for $y_j = 0$ (or $x_i = 0$).}
+		\textbf{Keep check for $\alpha = 0$ but not for $x_i = 0$, $y_i = 0$ or $b_i = 0$.}
 	\end{center}
 
 	% ~\\
@@ -187,23 +196,23 @@
 			0\\
 			1
 		\end{bmatrix}$.
-		\item Combination of BLAS inconsistencies:
+		\item Combination of inconsistencies in the Reference BLAS:
 		\begin{itemize}[<+->]
 			\item \texttt{IxAMAX} chooses $A_{11} = 1$, not $A_{21} = NaN$, as pivot.
 			\only<1>{$$A = \begin{bmatrix}
 				\smash{\color{red}\fbox{\color{black}\rule[-15pt]{0pt}{1pt}$\;\, 1 \;\,$}} & 0\\
 				NaN & 2
 			\end{bmatrix}$$}
-			\item \texttt{xGER} finds $0$ in $A_{12}$ and do not use the NaN.
+			\item \texttt{xGER} finds $0$ in $A_{12}$ and does not use the NaN. \only<2>{{\tiny \color{red} (Also on BLIS 0.9.0)}}
 			\only<2>{$$A_{22} := A_{22} \textcolor{red}{- NaN \cdot 0}$$}
-			\item \texttt{xGETRS} sees the LU factorization:
-			$$L = \begin{bmatrix}
+			\item LU factorization:
+			$L = \begin{bmatrix}
 				1 & 0\\
 				NaN & 1
 			\end{bmatrix}, \quad U = \begin{bmatrix}
 				1 & 0\\
 				0 & 2
-			\end{bmatrix}$$
+			\end{bmatrix}$
 			\item The first call for \texttt{xTRSV} solves $Ly=b$ and finds $y = \begin{bmatrix}
 				0\\ 1
 			\end{bmatrix}$.
@@ -216,12 +225,19 @@
 		\only<5>{\item \textbf{NaN does not propagate!}}
 	\end{itemize}
 
+	\only<5>{\flushright\footnotesize \color{red} BLIS 0.9.0 propagates NaNs in this example.}
+
 \end{frame}
 
 % \section{Inconsistencies between languages and compilers}
 
 \begin{frame}[fragile]{Examples of unavoidable inconsistencies}
 
+	Summation order: \texttt{sum(OV,OV,-OV,-OV)} can be\\
+	~\texttt{NaN, Inf, -Inf} or \texttt{0}, ~ where \texttt{OV} is the overflow threshold.
+
+	
+	~\\
 	IEEE 754-2019 defines \texttt{min} and \texttt{max} that propagate NaNs.\\
 	Compilers need time to adopt those rules.~\footnote{\url{https://www.godbolt.org/z/1sfceYbao}}
 	\begin{lstlisting}[language=Fortran]
@@ -232,13 +248,14 @@ min( 1.0, qNaN ) =  1.0 ! gfortran 12.2\end{lstlisting}
 	Absolute value, product, and quotient of complex numbers:
 	\begin{itemize}
 		\item They are not specified by IEEE 754-2019.
-		\item In C99, \cpp{} and Fortran (starting in 2008): computations \\``without undue overflow or underflow''.
+		% \item In C99, \cpp{} and Fortran (starting in 2008): computations \\``without undue overflow or underflow''.
 		\item There is space for inconsistencies, e.g.,~\footnote{\url{https://www.godbolt.org/z/nvWWeToY6}}
 	\end{itemize}
 	\begin{lstlisting}[language=Fortran]
 cmplx(Inf,0.0)*cmplx(Inf,Inf) = cmplx(Inf,Inf) ! ifort 2021
 cmplx(Inf,0.0)*cmplx(Inf,Inf) = cmplx(NaN,NaN) ! gfortran 12
 
+abs(subNormal)            = subNormal ! ifort 2021
 abs(cmplx(0.0,subNormal)) = subNormal ! ifort 2021 (-O0)
 abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 
@@ -248,10 +265,10 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 
 \begin{frame}{Proposed exception handling}
 
-	If NaNs or Infs are inputs or created internally,
+	``If NaNs or Infs won't just disappear!''
 	\begin{enumerate}
 		% \setlength\itemsep{1em}
-		\item The program will still terminate.
+		\item The program will still complete.
 		\item Moreover, either:
 		\begin{itemize}
 			\item NaNs and Infs propagate to the output.
@@ -284,8 +301,8 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 			\item FLAG\_REPORT(1:2)\\
 			FLAG\_REPORT(1): WHAT to report.\\
 			FLAG\_REPORT(2): HOW to report.
-			\item INFO\_ARRAY(:) - can report INFO + details on Infs and NaNs on input, and internal calls.
-			\item CONTEXT - opaque argument. Can report, for example, exceptions on different threads.
+			\item INFO\_ARRAY(FIXED\_SIZE) - can report INFO + details on Infs and NaNs on input, output and internal calls.
+			\item CONTEXT - pointer to opaque data. Can report, for example, exceptions on different threads.
 		\end{itemize}
 		\item Legacy interface will be maintained as a wrapper.
 	\end{itemize}
@@ -301,21 +318,19 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 		\centering
 		\begin{tabular}{|c|c|c|}
 			\hline
-			BLAS library & I\{S,D\}AMAX & I\{C,Z\}AMAX \\\hline
-			Apple Accelerate 12.2.1 & {DNFPS~\footnote{DNFPS: Does not follow proposed standard.}} & {DNFPS} \\\hline
-			BLIS 0.9.0 & {\color{codegreen} Pass} & {DNFPS} \\\hline
-			IBM ESSL 6.3.0 & {DNFPS} & {DNFPS} \\\hline
-			Intel MKL 2022.1.0 & {\color{codegreen} Pass} & {DNFPS} \\\hline
-			LAPACK 3.9.1 & {DNFPS} & {DNFPS} \\\hline
-			LAPACK 3.10.1 & {DNFPS} & {DNFPS} \\\hline
+			BLAS library~\footnote{Apple Accelerate on macOS Monterey 12.2.1 using Apple clang version 13.1.6. IBM ESSL on Summit node using GNU compiler v9.1.0. Others on Ubuntu 20.04.4 LTS using GNU compiler v9.4.0.} & I\{S,D\}AMAX & I\{C,Z\}AMAX \\\hline
+			Apple Accelerate 12.2.1 & {X~\footnote{X: Does not follow proposed standard.}} & {X} \\\hline
+			BLIS 0.9.0 & {\color{codegreen} Pass} & {X} \\\hline
+			IBM ESSL 6.3.0 & {X} & {X} \\\hline
+			Intel MKL 2022.1.0 & {\color{codegreen} Pass} & {X} \\\hline
+			LAPACK 3.9.1 & {X} & {X} \\\hline
+			LAPACK 3.10.1 & {X} & {X} \\\hline
 			LAPACK 3.11-beta & {\color{codegreen} Pass} & {\color{codegreen} Pass} \\\hline
-			OpenBLAS 0.3.8 & {DNFPS} & {DNFPS} \\\hline
+			OpenBLAS 0.3.8 & {X} & {X} \\\hline
 		\end{tabular}
 		% \caption{Unsatisfied tests for I\{S,D\}AMAX.}
-		% \label{tab:DNFPSingtestsISAMAX}
+		% \label{tab:XingtestsISAMAX}
 	% \end{table}
-
-	\footnotetext{Apple Accelerate on macOS Monterey 12.2.1 using Apple clang version 13.1.6. IBM ESSL on Summit node using GNU compiler v9.1.0. Others on Ubuntu 20.04.4 LTS using GNU compiler v9.4.0.}
 
 \end{frame}
 
@@ -328,21 +343,19 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 		\centering
 		\begin{tabular}{|c|c|c|}
 			\hline
-			BLAS library & \{S,D\}NRM2 (finite input) & \{S,D\}NRM2 \\\hline
-			Apple Accelerate 12.2.1 & {DNFPS~\footnote{DNFPS: Does not follow proposed standard.}} & {DNFPS} \\\hline
-			BLIS 0.9.0 & {DNFPS} & {DNFPS} \\\hline
+			BLAS library~\footnote{Apple Accelerate on macOS Monterey 12.2.1 using Apple clang version 13.1.6. IBM ESSL on Summit node using GNU compiler v9.1.0. Others on Ubuntu 20.04.4 LTS using GNU compiler v9.4.0.} & \{S,D\}NRM2 (finite input) & \{S,D\}NRM2 \\\hline
+			Apple Accelerate 12.2.1 & {X~\footnote{X: Does not follow proposed standard.}} & {X} \\\hline
+			BLIS 0.9.0 & {X} & {X} \\\hline
 			IBM ESSL 6.3.0 & {\color{codegreen} Pass} & {\color{codegreen} Pass} \\\hline
 			Intel MKL 2022.1.0 & {\color{codegreen} Pass} & {\color{codegreen} Pass} \\\hline
-			LAPACK 3.9.1 & {DNFPS} & {DNFPS} \\\hline
+			LAPACK 3.9.1 & {X} & {X} \\\hline
 			LAPACK 3.10.1 & {\color{codegreen} Pass} & {\color{codegreen} Pass} \\\hline
 			LAPACK 3.11-beta & {\color{codegreen} Pass} & {\color{codegreen} Pass} \\\hline
 			OpenBLAS 0.3.8 & {\color{codegreen} Pass} & {\color{codegreen} Pass} \\\hline
 		\end{tabular}
 		% \caption{Unsatisfied tests for I\{S,D\}AMAX.}
-		% \label{tab:DNFPSingtestsISAMAX}
+		% \label{tab:XingtestsISAMAX}
 	% \end{table}
-
-	\footnotetext{Apple Accelerate on macOS Monterey 12.2.1 using Apple clang version 13.1.6. IBM ESSL on Summit node using GNU compiler v9.1.0. Others on Ubuntu 20.04.4 LTS using GNU compiler v9.4.0.}
 
 \end{frame}
 
@@ -355,7 +368,8 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 		\item During installation of LAPACK, check \texttt{abs}, multiplication and division of complex, and \texttt{min} and \texttt{max} behave as expected. \textcolor{red}{(partially done in LAPACK 3.10.1)}
 		\item Modify LAPACKE drivers, so that they return an error flag if input has NaNs or Infs.
 		\item Modify LAPACK, so that routines that compute norms of complex matrices signal NaNs and Infs on input.
-		\item Fix Reference BLAS and implement test code.
+		\item Fix Reference BLAS and implement test code.\\
+		\textcolor{red}{(The new IxAMAX is planned to be in LAPACK 3.11)}
 		\item Validate the EC interfaces for a few LAPACK routines.
 		\item Design more general test code.
 		\item Implement the EC interfaces to the rest of LAPACK.
@@ -377,7 +391,8 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 \begin{center}
 	\small
 Proposed Exception Handling
-for the BLAS and LAPACK:\\ \url{https://www.arxiv.org/abs/2207.09281}
+for the BLAS and LAPACK:\\ \url{https://www.arxiv.org/abs/2207.09281}\\
+(Shorter version will be available in the SC'22)
 \end{center}
 
 \vspace{10pt}
@@ -437,6 +452,19 @@ Technology with Interdisciplinary Collaboration
 		\end{itemize}
 	\end{itemize}
 
+\end{frame}
+
+\begin{frame}{LAPACK 3.11}
+
+	LAPACK 3.11 will be probably released on November 2022.
+
+	~\\
+	What is planned to be there?
+	\begin{itemize}
+		\item More precise algorithms for generating Givens rotations.
+		\item New proposed behavior for IxAMAX.
+	\end{itemize}
+	
 \end{frame}
 
 \end{document}
