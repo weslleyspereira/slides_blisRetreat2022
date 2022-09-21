@@ -67,7 +67,7 @@
 %\setbeamertemplate{navigation symbols}{} 
 % \titlegraphic{\flushright \includegraphics[height=.15\linewidth]{img/NSF}} 
 % \institute{University of Colorado Denver} 
-\date{September 14, 2022 \\\vspace{10pt} {\small XBLAS meeting}}
+\date{BLIS Retreat 2022\\\vspace{10pt} September 22, UT Austin}
 %\subject{}
 
 \begin{document}
@@ -114,9 +114,9 @@
 	\tableofcontents
 
 	\begin{center}
-		\textbf{One of the goals of this talk:}\\
-	Seek feedback
-\end{center}
+		One of the goals of this talk:\\
+		\textbf{Seek feedback}
+	\end{center}
 
 \end{frame}
 
@@ -233,7 +233,7 @@
 
 \begin{frame}[fragile]{Examples of unavoidable inconsistencies}
 
-	Summation order: \texttt{sum(OV,OV,-OV,-OV)} can be\\
+	Summation order: \texttt{sum([OV,OV,-OV,-OV])} can be\\
 	~\texttt{NaN, Inf, -Inf} or \texttt{0}, ~ where \texttt{OV} is the overflow threshold.
 
 	
@@ -365,11 +365,11 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 
 	\begin{enumerate}
 		\setlength\itemsep{0.7em}
-		\item During installation of LAPACK, check \texttt{abs}, multiplication and division of complex, and \texttt{min} and \texttt{max} behave as expected. \textcolor{red}{(partially done in LAPACK 3.10.1)}
+		\item During installation of LAPACK, check \texttt{abs}, multiplication and division of complex, and \texttt{min} and \texttt{max} behave as expected. \textcolor{red}{\small (Partially done in LAPACK 3.10.1)}
 		\item Modify LAPACKE drivers, so that they return an error flag if input has NaNs or Infs.
 		\item Modify LAPACK, so that routines that compute norms of complex matrices signal NaNs and Infs on input.
 		\item Fix Reference BLAS and implement test code.\\
-		\textcolor{red}{(The new IxAMAX is planned to be in LAPACK 3.11)}
+		\textcolor{red}{\small (The new IxAMAX is planned to be in LAPACK 3.11)}
 		\item Validate the EC interfaces for a few LAPACK routines.
 		\item Design more general test code.
 		\item Implement the EC interfaces to the rest of LAPACK.
