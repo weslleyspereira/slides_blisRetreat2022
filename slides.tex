@@ -120,7 +120,7 @@
 
 \end{frame}
 
-\section{Inconsistencies in the Reference BLAS and LAPACK libraries}
+\section{Inconsistencies in the Reference BLAS and LAPACK libraries (Some also in BLIS)}
 
 \begin{frame}{Inconsistencies in the Reference BLAS}
 
@@ -164,7 +164,7 @@
 	\begin{itemize}
 		\item Current Reference BLAS:\\
 		~ Skip trailing 0s in $b$.\\
-		~ If $x_j = 0$ then skip update $x_i := x_i - A_{ij}x_j$.\\
+		~ If $x_j = 0$ then skip update $x_i := x_i - T_{ij}x_j$.\\
 		~ No checks for 0s when solving $T^Tx = b$.
 	\end{itemize}
 
@@ -261,7 +261,7 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 
 \end{frame}
 
-\section{Proposed exception handling and preliminary tests}
+\section{Proposed exception handling}
 
 \begin{frame}{Proposed exception handling}
 
@@ -308,6 +308,8 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 	\end{itemize}
 
 \end{frame}
+
+\section{Early tests for the proposed consistent standard}
 
 \begin{frame}{Some early testBLAS~\footnote{\url{https://www.github.com/tlapack/testBLAS}} results}
 
@@ -379,15 +381,17 @@ abs(cmplx(0.0,subNormal)) = 0.0       ! ifort 2021 (-O3)\end{lstlisting}
 
 \begin{frame}
 
-\vspace{50pt}
+\vspace{20pt}
 \begin{center}
 	{\LARGE Thank you!}
 	
 	~\\
 	{\Large Questions?}
+	\\
+	\href{mailto:weslley.pereira@ucdenver.edu}{weslley.pereira@ucdenver.edu}
 \end{center}
 
-\vspace{30pt}
+\vspace{10pt}
 \begin{center}
 	\small
 Proposed Exception Handling
@@ -408,63 +412,63 @@ Technology with Interdisciplinary Collaboration
 
 \end{frame}
 
-\appendix
+% \appendix
 
 
 
-\begin{frame}{Meanings of WHAT and HOW}
+% \begin{frame}{Meanings of WHAT and HOW}
 
-	\begin{itemize}
-		% \setlength\itemsep{1em}
-		\item WHAT $\le$ -1: check nothing.
-		\item WHAT $=$ 0: legacy INFO checking.
-		\item WHAT $=$ 1: also, check input/output args for Infs/NaNs.
-		\item WHAT $\ge$ 2: do the above throughout call tree.
-	\end{itemize}
+% 	\begin{itemize}
+% 		% \setlength\itemsep{1em}
+% 		\item WHAT $\le$ -1: check nothing.
+% 		\item WHAT $=$ 0: legacy INFO checking.
+% 		\item WHAT $=$ 1: also, check input/output args for Infs/NaNs.
+% 		\item WHAT $\ge$ 2: do the above throughout call tree.
+% 	\end{itemize}
 
-	~\\
-	\begin{itemize}
-		% \setlength\itemsep{1em}
-		\item HOW $\le$ 0: only use INFO.
-		\item HOW $=$ 1: also use INFO\_ARRAY.
-		\item HOW $=$ 2: also, if INFO $\neq$ 0, call\\
-			~\texttt{REPORT\_EXCEPTIONS ( CONTEXT, ROUTINE\_NAME, INFO\_ARRAY)}
-		\item HOW $=$ 3: do the above throughout call tree.
-		\item HOW $\ge$ 4: call\\
-			~\texttt{GET\_FLAGS\_TO\_REPORT( CONTEXT, FLAG\_REPORT )}
-	\end{itemize}
+% 	~\\
+% 	\begin{itemize}
+% 		% \setlength\itemsep{1em}
+% 		\item HOW $\le$ 0: only use INFO.
+% 		\item HOW $=$ 1: also use INFO\_ARRAY.
+% 		\item HOW $=$ 2: also, if INFO $\neq$ 0, call\\
+% 			~\texttt{REPORT\_EXCEPTIONS ( CONTEXT, ROUTINE\_NAME, INFO\_ARRAY)}
+% 		\item HOW $=$ 3: do the above throughout call tree.
+% 		\item HOW $\ge$ 4: call\\
+% 			~\texttt{GET\_FLAGS\_TO\_REPORT( CONTEXT, FLAG\_REPORT )}
+% 	\end{itemize}
 
-\end{frame}
+% \end{frame}
 
-\begin{frame}{testBLAS~\footnote{\url{https://www.github.com/tlapack/testBLAS}}}
+% \begin{frame}{testBLAS~\footnote{\url{https://www.github.com/tlapack/testBLAS}}}
 
-	Tests corner cases and Inf/NaN propagation on BLAS packages.
+% 	Tests corner cases and Inf/NaN propagation on BLAS packages.
 
-	~\\
-	\begin{itemize}
-		\setlength\itemsep{1em}
-		\item Uses the \cpp{} BLAS interface of \tlapack~\footnote{\url{https://github.com/tlapack/tlapack}}.
-		\item Uses \BLASPP{}~\footnote{\url{https://bitbucket.org/icl/blaspp}} wrappers as main interface to vendor BLAS.
-		\item Currently:
-		\begin{itemize}
-			\item Test corner cases on BLAS routines.
-			\item Specific Inf and NaN propagation tests for \texttt{iamax}, \texttt{nrm2}, \texttt{trsv} and \texttt{trsm}.
-		\end{itemize}
-	\end{itemize}
+% 	~\\
+% 	\begin{itemize}
+% 		\setlength\itemsep{1em}
+% 		\item Uses the \cpp{} BLAS interface of \tlapack~\footnote{\url{https://github.com/tlapack/tlapack}}.
+% 		\item Uses \BLASPP{}~\footnote{\url{https://bitbucket.org/icl/blaspp}} wrappers as main interface to vendor BLAS.
+% 		\item Currently:
+% 		\begin{itemize}
+% 			\item Test corner cases on BLAS routines.
+% 			\item Specific Inf and NaN propagation tests for \texttt{iamax}, \texttt{nrm2}, \texttt{trsv} and \texttt{trsm}.
+% 		\end{itemize}
+% 	\end{itemize}
 
-\end{frame}
+% \end{frame}
 
-\begin{frame}{LAPACK 3.11}
+% \begin{frame}{LAPACK 3.11}
 
-	LAPACK 3.11 will be probably released on November 2022.
+% 	LAPACK 3.11 will be probably released on November 2022.
 
-	~\\
-	What is planned to be there?
-	\begin{itemize}
-		\item More precise algorithms for generating Givens rotations.
-		\item New proposed behavior for IxAMAX.
-	\end{itemize}
+% 	~\\
+% 	What is planned to be there?
+% 	\begin{itemize}
+% 		\item More precise algorithms for generating Givens rotations.
+% 		\item New proposed behavior for IxAMAX.
+% 	\end{itemize}
 	
-\end{frame}
+% \end{frame}
 
 \end{document}
